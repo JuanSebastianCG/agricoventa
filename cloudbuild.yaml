@@ -3,7 +3,7 @@ options:
   machineType: 'E2_MEDIUM'
 
 steps:
-  # Paso 1: Construir la imagen Docker usando el Dockerfile en backend/
+  # 1) Construir la imagen usando backend/ como contexto
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - build
@@ -11,15 +11,15 @@ steps:
       - 'backend/Dockerfile'
       - '-t'
       - 'us-central1-docker.pkg.dev/sms-emergia/backend/test-centralizador:${_COMMIT_SHA}'
-      - '.'   # contexto raíz, nuestro Dockerfile hace COPY backend/…
+      - 'backend'           # ← aquí apuntas al contexto correcto
 
-  # Paso 2: Empujar la imagen al Artifact Registry
+  # 2) Push
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - push
       - 'us-central1-docker.pkg.dev/sms-emergia/backend/test-centralizador:${_COMMIT_SHA}'
 
-  # Paso 3: Desplegar a Cloud Run
+  # 3) Deploy a Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:

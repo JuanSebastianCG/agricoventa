@@ -1,21 +1,27 @@
+# backend/app/Dockerfile
+
+# 1) Base ligera
 FROM node:20-alpine
 
+# 2) Directorio de trabajo
 WORKDIR /app
 
-# 1) Copia solo package.json/package-lock.json de backend
-COPY backend/package*.json ./
-
-# 2) Instala deps
+# 3) Copia defs de deps e instala TODO (dev+prod)
+COPY package*.json ./
 RUN npm install
 
-# 3) Copia TODO el contenido de backend (src/, prisma/, tsconfig.json…)
-COPY backend/. ./
+# 4) Copia el resto de tu código (src/, prisma/, tsconfig.json…)
+COPY . .
 
-# 4) Genera el cliente Prisma
-RUN npx prisma generate
+# 5) Genera Prisma client
+RUN npx prisma generate --schema=./prisma/schema.prisma
 
-# 5) Expone el puerto que usa tu app
+# 6) Compila TypeScript a /app/dist
+RUN npm run build
+
+# 7) Configura el puerto que Cloud Run inyecta y expónlo
+ENV PORT=3000
 EXPOSE 3000
 
-# 6) Arranca en modo dev
-CMD ["npm", "run", "start:dev"]
+# 8) Arranca la app compilada
+CMD ["node", "dist/index.js"]
