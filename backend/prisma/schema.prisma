@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// --- Core Models ---
+model User {
+  id                   String              @id @default(auto()) @map("_id") @db.ObjectId
+  username             String              @unique
+  email                String              @unique
+  passwordHash         String              @map("password_hash")
+  firstName            String?             @map("first_name")
+  lastName             String?             @map("last_name")
+  phoneNumber          String?             @unique @map("phone_number")
+  primaryLocationId    String?             @db.ObjectId @map("primary_location_id")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  isActive             Boolean             @default(true) @map("is_active")
+  userType             String              @map("user_type") // "SELLER", "BUYER", "ADMIN"
+  subscriptionType     String              @default("NORMAL") @map("subscription_type") // "NORMAL", "PREMIUM"
+  refreshToken         String?             @map("refresh_token")
+  profileImage         String?             @map("profile_image")
+  
+  // Relations
+  primaryLocation      Location?           @relation(fields: [primaryLocationId], references: [id])
+  products             Product[]
+  carts                Cart[]
+  orders               Order[]
+  reviews              Review[]
+  receivedNotifications UserNotification[] @relation("RecipientUser")
+  certificationsSubmitted UserCertification[] @relation("CertificationSubmitter")
+  certificationsVerified UserCertification[] @relation("CertificationVerifier")
+  productHistoryChanges ProductHistory[]
+
+  @@map("users")
+}
+
+model Location {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  addressLine1  String    @map("address_line1")
+  addressLine2  String?   @map("address_line2")
+  city          String
+  department    String
+  postalCode    String?   @map("postal_code")
+  country       String    @default("Colombia")
+  latitude      Float?
+  longitude     Float?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
+  
+  // Relations
+  users         User[]
+  products      Product[]
+
+  @@map("locations")
+}
+
+// NEW Category Model
+model Category {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  name              String    @unique
+  description       String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime? @updatedAt @map("updated_at")
+
+  // For self-relation (parent-child hierarchy)
+  parentId          String?   @db.ObjectId @map("parent_id")
+  parent            Category? @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children          Category[] @relation("CategoryHierarchy")
+
+  // Relations
+  products          Product[]
+  recommendations   ProductRecommendation[]
+
+  @@map("categories")
+}
+
+model Product {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  sellerId           String               @db.ObjectId @map("seller_id")
+  categoryId         String?              @db.ObjectId @map("category_id") // Changed from productTypeId to categoryId
+  originLocationId   String               @db.ObjectId @map("origin_location_id")
+  name               String
+  description        String?
+  basePrice          Float                @map("base_price")
+  stockQuantity      Int                  @default(0) @map("stock_quantity")
+  unitMeasure        String               @map("unit_measure") // "kg", "unit", "bundle", etc.
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime?            @updatedAt @map("updated_at")
+  isFeatured         Boolean              @default(false) @map("is_featured")
+  isActive           Boolean              @default(true) @map("is_active")
+  
+  // Relations
+  seller             User                 @relation(fields: [sellerId], references: [id])
+  category           Category?            @relation(fields: [categoryId], references: [id]) // Changed to relate to Category
+  originLocation     Location             @relation(fields: [originLocationId], references: [id])
+  images             ProductImage[]
+  orderItems         OrderItem[]
+  cartItems          CartItem[]
+  reviews            Review[]
+  notifications      ProductNotification[]
+  history            ProductHistory[]
+
+  @@map("products")
+}
+
+model UserCertification {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String               @db.ObjectId @map("user_id")
+  certificationName  String               @map("certification_name")
+  certificationType  String               @map("certification_type") // "INVIMA", "ICA", "REGISTRO_SANITARIO", "CERTIFICADO_ORGANICO"
+  certificateNumber  String               @map("certificate_number")
+  issuedDate         DateTime             @map("issued_date")
+  expiryDate         DateTime             @map("expiry_date")
+  imageUrl           String               @map("image_url")
+  status             String               @default("PENDING") // "PENDING", "VERIFIED", "REJECTED"
+  uploadedAt         DateTime             @default(now()) @map("uploaded_at")
+  verifiedAt         DateTime?            @map("verified_at")
+  verifierAdminId    String?              @db.ObjectId @map("verifier_admin_id")
+  rejectionReason    String?              @map("rejection_reason")
+  
+  // Relations
+  user               User                 @relation("CertificationSubmitter", fields: [userId], references: [id])
+  verifierAdmin      User?                @relation("CertificationVerifier", fields: [verifierAdminId], references: [id])
+
+  @@map("user_certifications")
+}
+
+// --- Supporting Product Models ---
+model ProductImage {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  productId          String               @db.ObjectId @map("product_id")
+  imageUrl           String               @map("image_url")
+  altText            String?              @map("alt_text")
+  displayOrder       Int                  @default(0) @map("display_order")
+  isPrimary          Boolean              @default(false) @map("is_primary")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  
+  // Relations
+  product            Product              @relation(fields: [productId], references: [id])
+
+  @@map("product_images")
+}
+
+// --- Order & Cart Models ---
+model Order {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  buyerUserId        String               @db.ObjectId @map("buyer_user_id")
+  totalAmount        Float                @map("total_amount")
+  status             String               // "PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime?            @updatedAt @map("updated_at")
+  paymentMethod      String?              @map("payment_method")
+  paymentStatus      String?              @map("payment_status") // "PENDING", "PAID", "FAILED"
+  shippingMethod     String?              @map("shipping_method")
+  trackingNumber     String?              @map("tracking_number")
+  
+  // Relations
+  buyer              User                 @relation(fields: [buyerUserId], references: [id])
+  items              OrderItem[]
+  reviews            Review[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  orderId            String               @db.ObjectId @map("order_id")
+  productId          String               @db.ObjectId @map("product_id")
+  quantity           Int
+  unitPrice          Float                @map("unit_price")
+  subtotal           Float
+  
+  // Relations
+  order              Order                @relation(fields: [orderId], references: [id])
+  product            Product              @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model Cart {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String               @db.ObjectId @map("user_id") @unique
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime?            @updatedAt @map("updated_at")
+  
+  // Relations
+  user               User                 @relation(fields: [userId], references: [id])
+  items              CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  cartId             String               @db.ObjectId @map("cart_id")
+  productId          String               @db.ObjectId @map("product_id")
+  quantity           Int
+  addedAt            DateTime             @default(now()) @map("added_at")
+  
+  // Relations
+  cart               Cart                 @relation(fields: [cartId], references: [id])
+  product            Product              @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId], name: "uq_cart_product")
+  @@map("cart_items")
+}
+
+// --- Review Model ---
+model Review {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String    @db.ObjectId
+  productId         String    @db.ObjectId
+  orderId           String?   @db.ObjectId
+  rating            Float
+  comment           String?
+  isVerifiedPurchase Boolean   @default(false)
+  isApproved        Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order             Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([productId])
+  @@index([orderId])
+  @@index([isApproved])
+}
+
+// --- Notification Models ---
+model UserNotification {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  recipientUserId    String               @db.ObjectId @map("recipient_user_id")
+  type               String               // "ORDER_STATUS", "CERT_APPROVED", etc.
+  title              String?
+  message            String
+  isRead             Boolean              @default(false) @map("is_read")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime?            @updatedAt @map("updated_at")
+  relatedEntityType  String?              @map("related_entity_type") // "order", "user_certification", etc.
+  relatedEntityId    String?              @db.ObjectId @map("related_entity_id")
+  
+  // Relations
+  recipient          User                 @relation("RecipientUser", fields: [recipientUserId], references: [id])
+
+  @@map("user_notifications")
+}
+
+model ProductNotification {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  productId          String               @db.ObjectId @map("product_id")
+  type               String               // "GENERAL_PROMO", "PRICE_DROP", "LOW_STOCK"
+  title              String?
+  message            String
+  isActive           Boolean              @default(true) @map("is_active")
+  startDate          DateTime?            @map("start_date")
+  endDate            DateTime?            @map("end_date")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  
+  // Relations
+  product            Product              @relation(fields: [productId], references: [id])
+
+  @@map("product_notifications")
+}
+
+// --- Product Recommendations ---
+model ProductRecommendation {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  categoryId         String               @db.ObjectId @map("category_id") // Changed to categoryId
+  title              String
+  message            String
+  recommendedProductId String              @db.ObjectId @map("recommended_product_id")
+  recommendationType  String?             @map("recommendation_type") // "CARE_TIP", "USAGE_IDEA", "COMPLEMENTARY_PRODUCT"
+  isActive           Boolean              @default(true) @map("is_active")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  
+  // Relations
+  category           Category             @relation(fields: [categoryId], references: [id]) // Changed to relate to Category
+
+  @@map("product_recommendations")
+}
+
+// --- Token Management ---
+model BlacklistedToken {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  token              String               @unique
+  expiresAt          DateTime             @map("expires_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+
+  @@map("blacklisted_tokens")
+}
+
+// --- Product History Model ---
+model ProductHistory {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  productId          String               @db.ObjectId @map("product_id")
+  userId             String               @db.ObjectId @map("user_id")
+  changeType         String               @map("change_type") // "CREATE", "UPDATE", "DELETE"
+  changeField        String?              @map("change_field") // Nombre del campo modificado, null si es creación o eliminación
+  oldValue           String?              @map("old_value")
+  newValue           String?              @map("new_value")
+  timestamp          DateTime             @default(now())
+  additionalInfo     Json?                @map("additional_info")
+  
+  // Relations
+  product            Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user               User                 @relation(fields: [userId], references: [id])
+
+  @@index([productId])
+  @@index([userId])
+  @@index([timestamp])
+  @@map("product_history")
+}

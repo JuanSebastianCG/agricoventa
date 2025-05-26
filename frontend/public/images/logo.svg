@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200px" height="60px">
+  <!-- Left leaf shape in green -->
+  <path d="M31.5 15c-6.5 3-11 9.6-11 17.2s4.5 14.2 11 17.2c-5.2-6-8.3-13.8-8.3-22.3C23.2 18.6 26.3 10.8 31.5 15z" fill="#046B4D"/>
+  
+  <!-- Right leaf shape in yellow-green -->
+  <path d="M42.5 15c6.5 3 11 9.6 11 17.2s-4.5 14.2-11 17.2c5.2-6 8.3-13.8 8.3-22.3C50.8 18.6 47.7 10.8 42.5 15z" fill="#E3E986"/>
+  
+  <!-- Middle line connecting the leaves -->
+  <path d="M37 14v36" stroke="#333" stroke-width="1.5"/>
+  
+  <!-- Text part of the logo -->
+  <text x="65" y="38" font-family="Arial, sans-serif" font-weight="bold" font-size="22">
+    <tspan fill="#046B4D">Agric</tspan><tspan fill="#E3E986">oventas</tspan>
+  </text>
+</svg> 
