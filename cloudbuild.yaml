@@ -10,14 +10,14 @@ steps:
       - '-f'
       - 'backend/Dockerfile'
       - '-t'
-      - 'us-central1-docker.pkg.dev/erm-emergia/despliegue/test-centralizador:${_COMMIT_SHA}'
+      - 'us-central1-docker.pkg.dev/sms-emergia/backend/test-centralizador:${_COMMIT_SHA}'
       - '.'
 
   # Paso 2: Empujar la imagen al Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'us-central1-docker.pkg.dev/erm-emergia/despliegue/test-centralizador:${_COMMIT_SHA}'
+      - 'us-central1-docker.pkg.dev/sms-emergia/backend/test-centralizador:${_COMMIT_SHA}'
 
   # Paso 3: Desplegar a Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -27,7 +27,7 @@ steps:
       - 'deploy'
       - 'test-centralizador'
       - '--image'
-      - 'us-central1-docker.pkg.dev/erm-emergia/despliegue/test-centralizador:${_COMMIT_SHA}'
+      - 'us-central1-docker.pkg.dev/sms-emergia/backend/test-centralizador:${_COMMIT_SHA}'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -47,7 +47,7 @@ steps:
       - '3000'
 
 images:
-  - 'us-central1-docker.pkg.dev/erm-emergia/despliegue/test-centralizador:${_COMMIT_SHA}'
+  - 'us-central1-docker.pkg.dev/sms-emergia/backend/test-centralizador:${_COMMIT_SHA}'
 
 substitutions:
   _COMMIT_SHA: "${COMMIT_SHA}"
