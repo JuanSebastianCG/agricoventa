@@ -1,18 +1,21 @@
-# Usa Node LTS ligero
 FROM node:20-alpine
 
-# Directorio de trabajo
 WORKDIR /app
 
-# Copia defs de paquete e instala deps
-COPY package*.json ./
+# 1) Copia solo package.json/package-lock.json de backend
+COPY backend/package*.json ./
+
+# 2) Instala deps
 RUN npm install
 
-# Copia todo el código (incluyendo prisma/schema.prisma y src/)
-COPY . .
+# 3) Copia TODO el contenido de backend (src/, prisma/, tsconfig.json…)
+COPY backend/ ./
 
-# Expone el puerto de tu app
+# 4) Genera el cliente Prisma
+RUN npx prisma generate
+
+# 5) Expone el puerto que usa tu app
 EXPOSE 3000
 
-# Arranca en modo desarrollo
+# 6) Arranca en modo dev
 CMD ["npm", "run", "start:dev"]
