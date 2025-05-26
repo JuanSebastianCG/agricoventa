@@ -1,51 +1,64 @@
 # Stage 1: Build the application
-FROM node:20-alpine as build
+FROM node:20-alpine AS build
 
-# Set working directory
+# 1. Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# 2. Copy package definitions
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# 3. Install dependencies:
+#    - usa 'npm ci' si existe lockfile (reproducible y rápido en CI)
+#    - si no, cae a 'npm install' para que no falle
+RUN if [ -f package-lock.json ]; then \
+      npm ci; \
+    else \
+      npm install; \
+    fi
 
-# Copy the rest of the application code
+# 4. Copy source code
 COPY . .
 
-# Generate Prisma client
+# 5. Generate Prisma client
 RUN npx prisma generate
 
-# Build the application
+# 6. Build the application
 RUN npm run build
 
-# Stage 2: Create the production image
+
+
+# Stage 2: Production image
 FROM node:20-alpine
 
-# Set working directory
+# 1. Set working directory
 WORKDIR /app
 
-# Set NODE_ENV to production
+# 2. Set NODE_ENV
 ENV NODE_ENV=production
 
-# Copy package.json and package-lock.json
+# 3. Copy package definitions again
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --only=production
+# 4. Install only production dependencies,
+#    con la misma lógica condicional de 'ci' vs 'install'
+RUN if [ -f package-lock.json ]; then \
+      npm ci --only=production; \
+    else \
+      npm install --only=production; \
+    fi
 
-# Copy Prisma schema and client
+# 5. Copy Prisma artifacts
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy the built application
+# 6. Copy built code
 COPY --from=build /app/dist ./dist
 
-# Create uploads directory
+# 7. Prepare uploads folders
 RUN mkdir -p uploads/products uploads/profiles uploads/certifications
 
-# Expose port
+# 8. Expose port
 EXPOSE 3000
 
-# Start the server
-CMD ["node", "dist/index.js"] 
+# 9. Entrypoint
+CMD ["node", "dist/index.js"]
