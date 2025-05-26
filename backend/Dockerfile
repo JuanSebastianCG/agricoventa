@@ -9,7 +9,7 @@ COPY backend/package*.json ./
 RUN npm install
 
 # 3) Copia TODO el contenido de backend (src/, prisma/, tsconfig.json…)
-COPY backend/ ./
+COPY backend/. ./
 
 # 4) Genera el cliente Prisma
 RUN npx prisma generate
