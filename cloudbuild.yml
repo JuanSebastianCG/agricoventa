@@ -1,0 +1,53 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_MEDIUM'
+
+steps:
+  # Paso 1: Construir la imagen Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'backend/Dockerfile'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/erm-emergia/despliegue/test-centralizador:${_COMMIT_SHA}'
+      - '.'
+
+  # Paso 2: Empujar la imagen al Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/erm-emergia/despliegue/test-centralizador:${_COMMIT_SHA}'
+
+  # Paso 3: Desplegar a Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'test-centralizador'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/erm-emergia/despliegue/test-centralizador:${_COMMIT_SHA}'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '512Mi'  
+      - '--cpu'
+      - '1'
+      - '--concurrency'
+      - '30'
+      - '--max-instances'
+      - '2'
+      - '--timeout'
+      - '600'
+      - '--port'
+      - '3000'
+
+images:
+  - 'us-central1-docker.pkg.dev/erm-emergia/despliegue/test-centralizador:${_COMMIT_SHA}'
+
+substitutions:
+  _COMMIT_SHA: "${COMMIT_SHA}"
