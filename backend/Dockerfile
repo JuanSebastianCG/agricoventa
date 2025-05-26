@@ -1,34 +1,18 @@
-# Stage 1: Build
-FROM node:20-alpine AS build
-WORKDIR /app
-
-# 1. Copia los package desde la raíz del contexto
-COPY backend/package*.json ./
-
-# 2. Instala deps
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
-
-# 3. Copia tu código de backend (prisma, src, tsconfig…)
-COPY backend/prisma ./prisma
-COPY backend/src    ./src
-COPY backend/tsconfig.json ./tsconfig.json
-COPY backend/.env.example  .env.example
-
-# 4. Prisma + build
-RUN npx prisma generate --schema=./prisma/schema.prisma
-RUN npm run build
-
-# Stage 2: Production
+# Usa Node LTS ligero
 FROM node:20-alpine
+
+# Directorio de trabajo
 WORKDIR /app
-ENV NODE_ENV=production
 
-COPY backend/package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci --only=production; else npm install --only=production; fi
+# Copia defs de paquete e instala deps
+COPY package*.json ./
+RUN npm install
 
-COPY --from=build /app/dist   ./dist
-COPY --from=build /app/prisma  ./prisma
-RUN mkdir -p uploads/products uploads/profiles uploads/certifications
+# Copia todo el código (incluyendo prisma/schema.prisma y src/)
+COPY . .
 
+# Expone el puerto de tu app
 EXPOSE 3000
-CMD ["node", "dist/index.js"]
+
+# Arranca en modo desarrollo
+CMD ["npm", "run", "start:dev"]
